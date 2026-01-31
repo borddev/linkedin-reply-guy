@@ -1,0 +1,31 @@
+{
+  "name": "linkedin-reply-guy",
+  "displayName": "LinkedIn Reply Guy",
+  "description": "AI-powered LinkedIn comment bot",
+  "color": "#0A66C2",
+  "version": "1.0.0",
+  "pages": [
+    { "path": "/linkedin-reply-guy", "file": "pages/page.tsx" },
+    { "path": "/linkedin-reply-guy/school", "file": "pages/school/page.tsx" },
+    { "path": "/linkedin-reply-guy/connections", "file": "pages/connections/page.tsx" }
+  ],
+  "apiRoutes": [
+    { "path": "/api/linkedin-reply-guy", "dir": "api" }
+  ],
+  "envRequired": [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "ANTHROPIC_API_KEY"
+  ],
+  "envOptional": [
+    "ADSPOWER_PROFILE_ID"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "stats": {
+    "label": "LinkedIn growth",
+    "value": "comments + connections"
+  }
+}
