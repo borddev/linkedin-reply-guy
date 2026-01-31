@@ -3,6 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { agentConfig } from './agent-config';
 
+interface AdsPowerProfile {
+  id: string;
+  name: string;
+  remark: string;
+  group: string;
+}
+
 interface Comment {
   id: string;
   comment_text: string;
@@ -43,12 +50,40 @@ export default function LinkedInReplyGuyPage() {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [hoveredComment, setHoveredComment] = useState<Comment | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [profiles, setProfiles] = useState<AdsPowerProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [showProfilePicker, setShowProfilePicker] = useState(false);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
 
   function getToday() { return new Date().toISOString().split('T')[0]; }
   function getYesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
   function getDaysAgo(days: number) { const d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().split('T')[0]; }
 
-  useEffect(() => { loadComments(); }, []);
+  useEffect(() => {
+    loadComments();
+    const saved = localStorage.getItem('linkedin-reply-guy-profile');
+    if (saved) setSelectedProfile(saved);
+  }, []);
+
+  async function loadProfiles() {
+    setProfilesLoading(true);
+    setProfilesError(null);
+    try {
+      const res = await fetch('/linkedin-reply-guy/api/profiles');
+      const data = await res.json();
+      if (data.error) setProfilesError(data.error);
+      setProfiles(data.profiles || []);
+    } catch { setProfilesError('Failed to connect to AdsPower'); }
+    setProfilesLoading(false);
+  }
+
+  function selectProfile(id: string, name: string) {
+    setSelectedProfile(id);
+    localStorage.setItem('linkedin-reply-guy-profile', id);
+    localStorage.setItem('linkedin-reply-guy-profile-name', name);
+    setShowProfilePicker(false);
+  }
 
   async function loadComments() {
     setLoading(true);
@@ -147,6 +182,59 @@ export default function LinkedInReplyGuyPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ color: '#555', fontSize: 11 }}>Updated {formatLastSync(lastSync)}</span>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setShowProfilePicker(!showProfilePicker); if (!showProfilePicker) loadProfiles(); }}
+              style={{
+                color: '#fff', fontSize: 11, padding: '6px 12px', borderRadius: 20,
+                background: selectedProfile ? '#1a3a2a' : '#331a1a', border: `1px solid ${selectedProfile ? '#2d5a3d' : '#5a2d2d'}`,
+                fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+              }}
+            >
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: selectedProfile ? '#22c55e' : '#ef4444' }} />
+              {selectedProfile
+                ? (localStorage.getItem('linkedin-reply-guy-profile-name') || selectedProfile.slice(0, 8))
+                : 'No Profile'}
+            </button>
+            {showProfilePicker && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 8, background: '#111',
+                border: '1px solid #333', borderRadius: 12, padding: 12, minWidth: 280, zIndex: 100,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+              }}>
+                <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>AdsPower Profiles</div>
+                {profilesLoading ? (
+                  <div style={{ color: '#666', fontSize: 12, padding: 8 }}>Loading...</div>
+                ) : profilesError ? (
+                  <div style={{ color: '#ef4444', fontSize: 12, padding: 8 }}>{profilesError}</div>
+                ) : profiles.length === 0 ? (
+                  <div style={{ color: '#666', fontSize: 12, padding: 8 }}>No profiles found</div>
+                ) : profiles.map(p => (
+                  <button key={p.id} onClick={() => selectProfile(p.id, p.name)} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 12px',
+                    background: selectedProfile === p.id ? '#1a3a2a' : 'transparent',
+                    border: selectedProfile === p.id ? '1px solid #2d5a3d' : '1px solid #222',
+                    borderRadius: 6, color: '#fff', cursor: 'pointer', marginBottom: 4, textAlign: 'left'
+                  }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: selectedProfile === p.id ? '#22c55e' : '#555' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12 }}>{p.name}</div>
+                      {p.remark && <div style={{ fontSize: 10, color: '#666' }}>{p.remark}</div>}
+                    </div>
+                  </button>
+                ))}
+                {selectedProfile && (
+                  <>
+                    <div style={{ borderTop: '1px solid #333', margin: '8px 0' }} />
+                    <button onClick={() => { setSelectedProfile(''); localStorage.removeItem('linkedin-reply-guy-profile'); localStorage.removeItem('linkedin-reply-guy-profile-name'); setShowProfilePicker(false); }} style={{
+                      width: '100%', padding: '6px 12px', background: 'transparent', border: '1px solid #333',
+                      borderRadius: 6, color: '#888', cursor: 'pointer', fontSize: 11
+                    }}>Disconnect</button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           <a href="/linkedin-reply-guy/connections" style={{
             color: '#fff', fontSize: 11, textDecoration: 'none', padding: '6px 12px', borderRadius: 20,
             background: '#222', border: '1px solid #333', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6
